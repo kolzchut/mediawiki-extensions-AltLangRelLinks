@@ -32,6 +32,8 @@ class AltLangRelLinks {
 	function onBeforePageDisplay( OutputPage &$out, Skin &$skin ) {
 		$languageLinks = $out->getLanguageLinks();
 
+		if ( empty( $languageLinks ) ) { return true; }
+
 		// this is partly a ripoff from SkinTemplate::getLanguages()
 		foreach ($languageLinks as $langLink) {
 			$languageLinkTitle = Title::newFromText( $langLink );
