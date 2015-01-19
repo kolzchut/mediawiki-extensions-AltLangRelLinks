@@ -1,0 +1,13 @@
+AltLangRelLinks extension for MediaWiki
+=======================================
+
+This extension adds an alternate <link> for each inter-language link,
+per [Google](https://support.google.com/webmasters/answer/189077).
+
+## Changelog
+
+### 0.1.1 [19-Jan-2015]
+Fix description in MediaWiki credits
+
+### 0.1.0
+initial release

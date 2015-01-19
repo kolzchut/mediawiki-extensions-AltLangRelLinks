@@ -1,0 +1,8 @@
+{
+	"@metadata": {
+		"authors": [
+			"Dror S."
+		]
+	},
+	"ext-altlangrellinks-desc": "Adds an alternate <link> for each inter-language link (per [https://support.google.com/webmasters/answer/189077 Google])"
+}
