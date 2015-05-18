@@ -3,8 +3,8 @@
  * WikiRights AltLangRelLinks extension
  * Adds a <link rel="alternate" hreflang=""> link for each langlink
  *
- * @author Dror Snir
- * @copyright (C) 2014 Dror S. (Kol-Zchut)
+ * @author Dror S. [FFS]
+ * @copyright (C) 2014 Dror S. & Kol-Zchut Ltd.
  * @license http://www.gnu.org/copyleft/gpl.html GNU General Public License 2.0 or later
  *
  */
@@ -15,13 +15,13 @@ if ( !defined( 'MEDIAWIKI' ) ) {
 
 /* Setup */
 $GLOBALS['wgExtensionCredits']['other'][] = array(
-    'path'           => __FILE__,
-    'name'           => 'WikiRights AltLangRelLinks',
-    'author'         => 'Dror S. for [http://www.kolzchut.org.il Kol-Zchut]',
-    'version'        => '0.1.1',
-    'license-name' => 'GPL-2.0+',
-    //'url'            => 'http://www.kolzchut.org.il/he/כל-זכות:Extensions/AltLangRelLinks',
-    'descriptionmsg' => 'ext-altlangrellinks-desc',
+	'path'           => __FILE__,
+	'name'           => 'WikiRights AltLangRelLinks',
+	'author'         => 'Dror S. [FFS] ([http://www.kolzchut.org.il Kol-Zchut])',
+	'version'        => '0.1.1',
+	'license-name'   => 'GPL-2.0+',
+	//'url'            => 'http://www.kolzchut.org.il/he/כל-זכות:Extensions/AltLangRelLinks',
+	'descriptionmsg' => 'ext-altlangrellinks-desc',
 );
 
 
@@ -36,7 +36,9 @@ class AltLangRelLinks {
 	function onBeforePageDisplay( OutputPage &$out, Skin &$skin ) {
 		$languageLinks = $out->getLanguageLinks();
 
-		if ( empty( $languageLinks ) ) { return true; }
+		if ( empty( $languageLinks ) ) {
+			return true;
+		}
 
 		// this is partly a ripoff from SkinTemplate::getLanguages()
 		foreach ($languageLinks as $langLink) {
