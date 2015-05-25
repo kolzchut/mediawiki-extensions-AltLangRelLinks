@@ -33,7 +33,7 @@ $GLOBALS['wgHooks']['BeforePageDisplay'][] = 'AltLangRelLinks::onBeforePageDispl
 
 class AltLangRelLinks {
 
-	function onBeforePageDisplay( OutputPage &$out, Skin &$skin ) {
+	static function onBeforePageDisplay( OutputPage &$out, Skin &$skin ) {
 		$languageLinks = $out->getLanguageLinks();
 
 		if ( empty( $languageLinks ) ) {
