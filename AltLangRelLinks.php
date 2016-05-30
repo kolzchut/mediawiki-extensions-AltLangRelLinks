@@ -19,8 +19,8 @@ $GLOBALS['wgExtensionCredits']['other'][] = array(
 	'name'           => 'WikiRights AltLangRelLinks',
 	'author'         => 'Dror S. [FFS] ([http://www.kolzchut.org.il Kol-Zchut])',
 	'version'        => '0.1.1',
+	'url'            => 'https://github.com/kolzchut/mediawiki-extensions-AltLangRelLinks',
 	'license-name'   => 'GPL-2.0+',
-	//'url'            => 'http://www.kolzchut.org.il/he/כל-זכות:Extensions/AltLangRelLinks',
 	'descriptionmsg' => 'ext-altlangrellinks-desc',
 );
 
