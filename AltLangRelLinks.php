@@ -47,7 +47,7 @@ class AltLangRelLinks {
 
 			$out->addLink( array(
 				'rel' => 'alternate',
-				'hreflang' => wfBCP47($interwikiCode),
+				'hreflang' => LanguageCode::bcp47( $interwikiCode ),
 				'href' => wfExpandIRI( $languageLinkTitle->getFullURL() )
 			) );
 		}
@@ -57,7 +57,7 @@ class AltLangRelLinks {
 		$currentPageTitle = $out->getTitle();
 		$out->addLink( array(
 			'rel' => 'alternate',
-			'hreflang' => wfBCP47( $currentPageLangCode ),
+			'hreflang' => LanguageCode::bcp47( $currentPageLangCode ),
 			'href' => wfExpandIRI( $currentPageTitle->getFullURL() )
 		) );
 
