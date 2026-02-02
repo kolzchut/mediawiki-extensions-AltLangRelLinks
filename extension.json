@@ -1,0 +1,31 @@
+{
+	"name": "AltLangRelLinks",
+	"version": "1.1.0",
+	"author": [
+		"Dror S. [FFS]"
+	],
+	"url": "https://github.com/kolzchut/mediawiki-extensions-AltLangRelLinks",
+	"descriptionmsg": "ext-altlangrellinks-desc",
+	"license-name": "GPL-2.0-or-later",
+	"type": "other",
+	"requires": {
+		"MediaWiki": ">= 1.39.0"
+	},
+	"MessagesDirs": {
+		"AltLangRelLinks": [
+			"i18n"
+		]
+	},
+	"AutoloadNamespaces": {
+		"MediaWiki\\Extension\\AltLangRelLinks\\": "src/"
+	},
+	"HookHandlers": {
+		"AltLangRelLinksHooks": {
+			"class": "MediaWiki\\Extension\\AltLangRelLinks\\Hooks"
+		}
+	},
+	"Hooks": {
+		"BeforePageDisplay": "AltLangRelLinksHooks"
+	},
+	"manifest_version": 2
+}
