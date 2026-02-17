@@ -1,27 +1,4 @@
 {
-	"name": "kolzchut/altlangrellinks",
-	"type": "mediawiki-extension",
-	"description": "Adds alternate language link elements for each inter-language link to improve SEO",
-	"keywords": [
-		"mediawiki",
-		"extension",
-		"seo",
-		"hreflang",
-		"multilingual",
-		"i18n"
-	],
-	"homepage": "https://github.com/kolzchut/mediawiki-extensions-AltLangRelLinks",
-	"license": "GPL-2.0-or-later",
-	"authors": [
-		{
-			"name": "Dror S.",
-			"role": "Developer"
-		}
-	],
-	"support": {
-		"issues": "https://github.com/kolzchut/mediawiki-extensions-AltLangRelLinks/issues",
-		"source": "https://github.com/kolzchut/mediawiki-extensions-AltLangRelLinks"
-	},
 	"require-dev": {
 		"mediawiki/mediawiki-codesniffer": "49.0.0",
 		"mediawiki/mediawiki-phan-config": "0.18.0",
