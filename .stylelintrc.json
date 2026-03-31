@@ -1,6 +1,5 @@
 {
 	"extends": [
-		"stylelint-config-wikimedia/support-basic",
 		"stylelint-config-wikimedia/mediawiki"
 	]
 }
