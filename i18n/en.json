@@ -4,5 +4,5 @@
 			"Dror S."
 		]
 	},
-	"ext-altlangrellinks-desc": "Adds an alternate <link> for each inter-language link (per [https://support.google.com/webmasters/answer/189077 Google])"
+	"ext-altlangrellinks-desc": "Adds an hreflang alternate <link> for each language version of a page (per [https://developers.google.com/search/docs/specialty/international/localized-versions Google]), and a canonical <link>"
 }

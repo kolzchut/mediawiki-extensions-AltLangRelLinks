@@ -5,6 +5,28 @@ All notable changes to the AltLangRelLinks extension will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2026-11-11
+
+### Added
+- The language set of a page comes from its hub page (`$wgAltLangRelLinksHubLanguage`):
+  a page on another language wiki takes every language version from the hub
+  page's interlanguage links, so it lists versions it does not link to itself
+- `$wgAltLangRelLinksWikis` limits the alternates to the farm's own languages
+- `hreflang="x-default"`, pointing at the hub page
+- A `<link rel="canonical">` on every wiki page that has none (`$wgAltLangRelLinksCanonical`)
+- `$wgAltLangRelLinksNamespaceNames`: namespace prefixes of links to another
+  language wiki are read and printed with that wiki's names, never the local
+  wiki's, so every alternate uses the target wiki's own namespace name
+- `$wgAltLangRelLinksNamespaces`; unit and integration tests
+
+### Changed
+- **BREAKING**: Minimum MediaWiki version is now 1.43
+- Alternates are added only to current-revision views in the alternate namespaces
+  (the content namespaces by default), and only when there is more than one language
+- The current page's alternate uses the wiki's content language. It used the
+  reader's interface language, so `?uselang=en` produced `hreflang="en"`
+- A page's link to its own language no longer produces a second alternate
+
 ## [1.0.0] - 2026-01-15
 
 ### Changed

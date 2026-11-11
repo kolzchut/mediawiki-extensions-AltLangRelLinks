@@ -1,6 +1,6 @@
 {
 	"name": "AltLangRelLinks",
-	"version": "1.1.0",
+	"version": "2.0.0",
 	"author": [
 		"Dror S. [FFS]"
 	],
@@ -9,7 +9,7 @@
 	"license-name": "GPL-2.0-or-later",
 	"type": "other",
 	"requires": {
-		"MediaWiki": ">= 1.39.0"
+		"MediaWiki": ">= 1.43.0"
 	},
 	"MessagesDirs": {
 		"AltLangRelLinks": [
@@ -19,13 +19,56 @@
 	"AutoloadNamespaces": {
 		"MediaWiki\\Extension\\AltLangRelLinks\\": "src/"
 	},
+	"TestAutoloadNamespaces": {
+		"MediaWiki\\Extension\\AltLangRelLinks\\Tests\\Unit\\": "tests/phpunit/unit/",
+		"MediaWiki\\Extension\\AltLangRelLinks\\Tests\\Integration\\": "tests/phpunit/integration/"
+	},
+	"config": {
+		"AltLangRelLinksWikis": {
+			"description": "The language wikis of this farm, as language code => wiki ID (database domain), e.g. { \"he\": \"kz_he\", \"ar\": \"kz_ar\" }. Only these languages get an hreflang alternate. An empty map keeps the legacy behaviour: every interlanguage link of the page, unfiltered, and no hub lookup.",
+			"value": []
+		},
+		"AltLangRelLinksHubLanguage": {
+			"description": "Language code of the hub wiki, whose interlanguage links define the full language set of a page. A page on another language wiki reaches its hub page through its own interlanguage link to the hub language. Must be a key of $wgAltLangRelLinksWikis; null disables the hub lookup.",
+			"value": null
+		},
+		"AltLangRelLinksNamespaceNames": {
+			"description": "For each language wiki, the namespace names it takes from its own configuration rather than its language, as language code => { namespace ID => name }: NS_PROJECT's $wgMetaNamespace (e.g. { \"he\": { \"4\": \"Kol-Zchut\" } }) and any $wgExtraNamespaces. No wiki can read another's configuration, so they are stated here. They are used to read the namespace prefix of a link to that wiki and to print it with that wiki's own name. Without them a page in such a namespace is reached only through a canonical or localised prefix, and printed with the canonical name.",
+			"value": [],
+			"merge_strategy": "array_plus_2d"
+		},
+		"AltLangRelLinksNamespaces": {
+			"description": "Namespaces whose pages get hreflang alternates. null means the content namespaces ($wgContentNamespaces).",
+			"value": null
+		},
+		"AltLangRelLinksXDefault": {
+			"description": "Whether to add an hreflang=\"x-default\" alternate that points at the hub page.",
+			"value": true
+		},
+		"AltLangRelLinksCanonical": {
+			"description": "Whether to add a <link rel=\"canonical\"> to wiki pages that have none. Has no effect when $wgEnableCanonicalServerLink is on, since core then adds one itself.",
+			"value": true
+		}
+	},
 	"HookHandlers": {
 		"AltLangRelLinksHooks": {
-			"class": "MediaWiki\\Extension\\AltLangRelLinks\\Hooks"
+			"class": "MediaWiki\\Extension\\AltLangRelLinks\\Hooks",
+			"services": [
+				"MainConfig",
+				"ConnectionProvider",
+				"MainWANObjectCache",
+				"NamespaceInfo",
+				"LanguageFactory",
+				"LanguageConverterFactory",
+				"TitleFactory",
+				"LocalisationCache"
+			]
 		}
 	},
 	"Hooks": {
-		"BeforePageDisplay": "AltLangRelLinksHooks"
+		"BeforePageDisplay": "AltLangRelLinksHooks",
+		"LinksUpdateComplete": "AltLangRelLinksHooks",
+		"PageDeleteComplete": "AltLangRelLinksHooks"
 	},
 	"manifest_version": 2
 }
