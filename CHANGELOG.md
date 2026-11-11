@@ -14,7 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `$wgAltLangRelLinksWikis` limits the alternates to the farm's own languages
 - `hreflang="x-default"`, pointing at the hub page
 - A `<link rel="canonical">` on every wiki page that has none (`$wgAltLangRelLinksCanonical`)
-- `$wgAltLangRelLinksNamespaces`; unit tests
+- `$wgAltLangRelLinksNamespaceNames`: namespace prefixes of links to another
+  language wiki are read and printed with that wiki's names, never the local
+  wiki's, so every alternate uses the target wiki's own namespace name
+- `$wgAltLangRelLinksNamespaces`; unit and integration tests
 
 ### Changed
 - **BREAKING**: Minimum MediaWiki version is now 1.43

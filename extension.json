@@ -20,7 +20,8 @@
 		"MediaWiki\\Extension\\AltLangRelLinks\\": "src/"
 	},
 	"TestAutoloadNamespaces": {
-		"MediaWiki\\Extension\\AltLangRelLinks\\Tests\\": "tests/phpunit/"
+		"MediaWiki\\Extension\\AltLangRelLinks\\Tests\\Unit\\": "tests/phpunit/unit/",
+		"MediaWiki\\Extension\\AltLangRelLinks\\Tests\\Integration\\": "tests/phpunit/integration/"
 	},
 	"config": {
 		"AltLangRelLinksWikis": {
@@ -30,6 +31,11 @@
 		"AltLangRelLinksHubLanguage": {
 			"description": "Language code of the hub wiki, whose interlanguage links define the full language set of a page. A page on another language wiki reaches its hub page through its own interlanguage link to the hub language. Must be a key of $wgAltLangRelLinksWikis; null disables the hub lookup.",
 			"value": null
+		},
+		"AltLangRelLinksNamespaceNames": {
+			"description": "For each language wiki, the namespace names it takes from its own configuration rather than its language, as language code => { namespace ID => name }: NS_PROJECT's $wgMetaNamespace (e.g. { \"he\": { \"4\": \"Kol-Zchut\" } }) and any $wgExtraNamespaces. No wiki can read another's configuration, so they are stated here. They are used to read the namespace prefix of a link to that wiki and to print it with that wiki's own name. Without them a page in such a namespace is reached only through a canonical or localised prefix, and printed with the canonical name.",
+			"value": [],
+			"merge_strategy": "array_plus_2d"
 		},
 		"AltLangRelLinksNamespaces": {
 			"description": "Namespaces whose pages get hreflang alternates. null means the content namespaces ($wgContentNamespaces).",
@@ -54,7 +60,8 @@
 				"NamespaceInfo",
 				"LanguageFactory",
 				"LanguageConverterFactory",
-				"TitleFactory"
+				"TitleFactory",
+				"LocalisationCache"
 			]
 		}
 	},

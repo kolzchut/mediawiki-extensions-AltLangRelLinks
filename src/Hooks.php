@@ -8,6 +8,7 @@
 
 namespace MediaWiki\Extension\AltLangRelLinks;
 
+use LocalisationCache;
 use MediaWiki\Config\Config;
 use MediaWiki\Hook\LinksUpdateCompleteHook;
 use MediaWiki\Language\LanguageCode;
@@ -36,6 +37,8 @@ class Hooks implements
 	private array $wikis;
 	private ?string $hubLanguage;
 	private ?HubLookup $hubLookup = null;
+	/** @var WikiNamespaces[] by language */
+	private array $wikiNamespaces = [];
 
 	public function __construct(
 		private readonly Config $config,
@@ -44,7 +47,8 @@ class Hooks implements
 		private readonly NamespaceInfo $namespaceInfo,
 		private readonly LanguageFactory $languageFactory,
 		private readonly LanguageConverterFactory $languageConverterFactory,
-		private readonly TitleFactory $titleFactory
+		private readonly TitleFactory $titleFactory,
+		private readonly LocalisationCache $localisationCache
 	) {
 		$this->wikis = (array)$config->get( 'AltLangRelLinksWikis' );
 		$hub = $config->get( 'AltLangRelLinksHubLanguage' );
@@ -134,7 +138,10 @@ class Hooks implements
 		foreach ( $set['links'] as $lang => $text ) {
 			$url = $lang === $currentLanguage
 				? $title->getCanonicalURL()
-				: $this->getInterlanguageUrl( $lang, $text );
+				: $this->getInterlanguageUrl(
+					$lang,
+					$this->getWikiNamespaces( $lang )->normaliseTitle( $text )
+				);
 			if ( $url !== null ) {
 				$urls[$lang] = $url;
 			}
@@ -201,12 +208,32 @@ class Hooks implements
 			&& WikiMap::getCurrentWikiId() === $this->wikis[$this->hubLanguage];
 	}
 
+	/**
+	 * The namespace names of the language wiki for $lang, as that wiki has them.
+	 */
+	private function getWikiNamespaces( string $lang ): WikiNamespaces {
+		if ( !isset( $this->wikiNamespaces[$lang] ) ) {
+			$configured = (array)$this->config->get( 'AltLangRelLinksNamespaceNames' );
+			$this->wikiNamespaces[$lang] = WikiNamespaces::newFromServices(
+				$this->localisationCache,
+				$this->namespaceInfo,
+				$lang,
+				(array)( $configured[$lang] ?? [] )
+			);
+		}
+		return $this->wikiNamespaces[$lang];
+	}
+
 	private function getHubLookup(): HubLookup {
 		$this->hubLookup ??= new HubLookup(
 			$this->connectionProvider,
 			$this->wanCache,
 			$this->languageFactory->getLanguage( $this->hubLanguage ),
-			$this->wikis[$this->hubLanguage]
+			$this->getWikiNamespaces( $this->hubLanguage ),
+			$this->wikis[$this->hubLanguage],
+			// Every wiki of a site shares the canonical server, and main and
+			// teen do not.
+			md5( (string)$this->config->get( MainConfigNames::CanonicalServer ) )
 		);
 		return $this->hubLookup;
 	}

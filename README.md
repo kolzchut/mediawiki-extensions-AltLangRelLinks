@@ -33,8 +33,22 @@ its own interlanguage link to the hub language, and takes the rest of the set
 from the hub page's links. An Arabic page that links only to Hebrew therefore
 still gets its Russian alternate. The hub page is read from the hub wiki's
 database through the load balancer, following one redirect. The result is held
-in the WAN cache for an hour, and the hub wiki clears an entry when that page's
-links are updated or the page is deleted.
+in the WAN cache for an hour, under a key that also names the site (its
+canonical server), and the hub wiki clears an entry when that page's links are
+updated or the page is deleted.
+
+### Namespace names of the other wikis
+
+A link such as `he:Project:About` has to be read, and printed, with the hub
+wiki's namespace names, and so does an alternate for any other language. A
+`Language` object for `he` built on the Arabic wiki cannot do that: it carries
+the Arabic wiki's own `$wgMetaNamespace` and `$wgExtraNamespaces`. The extension
+therefore combines what every wiki of the farm has in common, the language's
+localised names and aliases from the LocalisationCache and the canonical names,
+with each wiki's configuration-dependent names from
+`$wgAltLangRelLinksNamespaceNames`. Every alternate is printed with its own
+wiki's name for the namespace, so `Project:X`, `כל זכות:X` and `כל-זכות:X` all
+become `/he/כל-זכות:X`.
 
 When the page has no link to the hub, its own interlanguage links are used. When
 the hub page does not exist, its own links are used without the dead hub link.
@@ -59,6 +73,7 @@ configured to add the link.
 |---|---|---|
 | `$wgAltLangRelLinksWikis` | `[]` | Language code => wiki ID (database domain) for each language wiki of the farm. Only these languages get an alternate. Empty keeps the old behaviour: every interlanguage link, unfiltered, no hub. |
 | `$wgAltLangRelLinksHubLanguage` | `null` | The hub language. Must be a key of `$wgAltLangRelLinksWikis`. |
+| `$wgAltLangRelLinksNamespaceNames` | `[]` | Language => [ namespace ID => name ] for the names each wiki takes from its configuration: NS_PROJECT's `$wgMetaNamespace` and any `$wgExtraNamespaces`. |
 | `$wgAltLangRelLinksNamespaces` | `null` | Namespaces that get alternates. `null` means `$wgContentNamespaces`. |
 | `$wgAltLangRelLinksXDefault` | `true` | Add `hreflang="x-default"` pointing at the hub page. |
 | `$wgAltLangRelLinksCanonical` | `true` | Add the canonical link. |
@@ -68,6 +83,11 @@ Example for a farm with one database per language:
 ```php
 $wgAltLangRelLinksWikis = [ 'he' => 'kz_he', 'ar' => 'kz_ar', 'ru' => 'kz_ru' ];
 $wgAltLangRelLinksHubLanguage = 'he';
+$wgAltLangRelLinksNamespaceNames = [
+	'he' => [ NS_PROJECT => 'כל-זכות' ],
+	'ar' => [ NS_PROJECT => 'كل_الحق' ],
+	'ru' => [ NS_PROJECT => 'Коль_Зхут' ],
+];
 ```
 
 Every wiki in the farm must share one WAN cache for the hub wiki's
@@ -78,6 +98,7 @@ invalidation to reach the others; otherwise entries simply expire after an hour.
 ```sh
 # from the MediaWiki root
 vendor/bin/phpunit extensions/WikiRights/AltLangRelLinks/tests/phpunit/unit
+vendor/bin/phpunit extensions/WikiRights/AltLangRelLinks/tests/phpunit/integration
 ```
 
 ## Changelog

@@ -15,19 +15,33 @@ use Wikimedia\Rdbms\IReadableDatabase;
  * as RealLastUpdate does for its cross-wiki reads. Results are cached in the
  * WAN cache, which every wiki of a site shares, and the hub wiki clears an
  * entry when the page's links are updated or the page is deleted.
+ *
+ * Namespace prefixes are read and written with the hub wiki's names
+ * (WikiNamespaces), never the local wiki's.
  */
 class HubLookup {
 
 	/** Upper bound on staleness, e.g. for an entry reached through a redirect */
 	private const TTL = WANObjectCache::TTL_HOUR;
 
-	private const CACHE_VERSION = 1;
+	private const CACHE_VERSION = 2;
 
+	/**
+	 * @param IConnectionProvider $connectionProvider
+	 * @param WANObjectCache $wanCache
+	 * @param Language $hubLanguage Used only for first-letter case
+	 * @param WikiNamespaces $hubNamespaces
+	 * @param string $hubWiki The hub's wiki ID (database domain)
+	 * @param string $site Tells this site's cache keys from another site's,
+	 *  since main and teen both have a kz_he
+	 */
 	public function __construct(
 		private readonly IConnectionProvider $connectionProvider,
 		private readonly WANObjectCache $wanCache,
 		private readonly Language $hubLanguage,
-		private readonly string $hubWiki
+		private readonly WikiNamespaces $hubNamespaces,
+		private readonly string $hubWiki,
+		private readonly string $site
 	) {
 	}
 
@@ -37,7 +51,7 @@ class HubLookup {
 	 *  [] when it does not exist, otherwise [ 'title' => ..., 'links' => ... ]
 	 */
 	public function lookup( string $titleText ): array {
-		[ $namespace, $dbKey ] = self::splitTitle( $titleText, $this->hubLanguage );
+		[ $namespace, $dbKey ] = self::splitTitle( $titleText, $this->hubNamespaces, $this->hubLanguage );
 		if ( $dbKey === '' ) {
 			return [];
 		}
@@ -89,6 +103,12 @@ class HubLookup {
 		if ( !$page ) {
 			return null;
 		}
+		$title = $this->formatTitle( (int)$page->page_namespace, (string)$page->page_title );
+		if ( $title === null ) {
+			// A namespace we cannot name the way the hub does: better no
+			// alternate than a URL that does not exist.
+			return null;
+		}
 
 		$res = $dbr->newSelectQueryBuilder()
 			->select( [ 'll_lang', 'll_title' ] )
@@ -104,27 +124,30 @@ class HubLookup {
 			}
 		}
 
-		return [
-			'title' => $this->formatTitle( (int)$page->page_namespace, (string)$page->page_title ),
-			'links' => $links,
-		];
+		return [ 'title' => $title, 'links' => $links ];
 	}
 
 	/**
 	 * Turn a link target on the hub wiki into a namespace and DB key, reading the
-	 * namespace prefix in the hub's language. The hub's links are written in its
-	 * own language, so the local wiki's namespace names do not apply.
+	 * namespace prefix with the hub wiki's namespace names.
 	 *
+	 * @param string $text
+	 * @param WikiNamespaces $hubNamespaces
+	 * @param Language $hubLanguage For first-letter case only
 	 * @return array{0: int, 1: string}
 	 */
-	public static function splitTitle( string $text, Language $hubLanguage ): array {
+	public static function splitTitle(
+		string $text,
+		WikiNamespaces $hubNamespaces,
+		Language $hubLanguage
+	): array {
 		$dbKey = trim( str_replace( ' ', '_', $text ), '_' );
 		$namespace = NS_MAIN;
 		$colon = strpos( $dbKey, ':' );
 		if ( $colon !== false ) {
-			$index = $hubLanguage->getNsIndex( substr( $dbKey, 0, $colon ) );
-			if ( $index !== false && $index !== null ) {
-				$namespace = (int)$index;
+			$index = $hubNamespaces->getIndex( substr( $dbKey, 0, $colon ) );
+			if ( $index !== null ) {
+				$namespace = $index;
 				$dbKey = trim( substr( $dbKey, $colon + 1 ), '_' );
 			}
 		}
@@ -144,18 +167,20 @@ class HubLookup {
 		return $row ?: null;
 	}
 
-	private function formatTitle( int $namespace, string $dbKey ): string {
-		$text = str_replace( '_', ' ', $dbKey );
-		if ( $namespace === NS_MAIN ) {
-			return $text;
+	private function formatTitle( int $namespace, string $dbKey ): ?string {
+		$name = $this->hubNamespaces->getName( $namespace );
+		if ( $name === null ) {
+			return null;
 		}
-		return $this->hubLanguage->getFormattedNsText( $namespace ) . ':' . $text;
+		$text = str_replace( '_', ' ', $dbKey );
+		return $name === '' ? $text : str_replace( '_', ' ', $name ) . ':' . $text;
 	}
 
 	private function makeKey( int $namespace, string $dbKey ): string {
 		return $this->wanCache->makeGlobalKey(
 			'altlangrellinks-hub',
 			self::CACHE_VERSION,
+			$this->site,
 			$this->hubWiki,
 			$namespace,
 			md5( $dbKey )

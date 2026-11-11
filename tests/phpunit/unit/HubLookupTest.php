@@ -3,37 +3,28 @@
 namespace MediaWiki\Extension\AltLangRelLinks\Tests\Unit;
 
 use MediaWiki\Extension\AltLangRelLinks\HubLookup;
-use MediaWiki\Language\Language;
 use MediaWikiUnitTestCase;
 use Wikimedia\ObjectCache\HashBagOStuff;
 use Wikimedia\ObjectCache\WANObjectCache;
-use Wikimedia\Rdbms\FakeResultWrapper;
 use Wikimedia\Rdbms\IConnectionProvider;
 use Wikimedia\Rdbms\IReadableDatabase;
-use Wikimedia\Rdbms\SelectQueryBuilder;
 
 /**
  * @covers \MediaWiki\Extension\AltLangRelLinks\HubLookup
  */
 class HubLookupTest extends MediaWikiUnitTestCase {
-
-	private function newHebrew(): Language {
-		$lang = $this->createMock( Language::class );
-		$lang->method( 'getNsIndex' )->willReturnCallback(
-			static fn ( $text ) => [ 'קטגוריה' => NS_CATEGORY, 'Category' => NS_CATEGORY ][$text] ?? false
-		);
-		$lang->method( 'getFormattedNsText' )->willReturnCallback(
-			static fn ( $ns ) => $ns === NS_CATEGORY ? 'קטגוריה' : ''
-		);
-		$lang->method( 'ucfirst' )->willReturnArgument( 0 );
-		return $lang;
-	}
+	use HubTestTrait;
 
 	public static function provideSplitTitle() {
 		return [
 			'main namespace' => [ 'דמי אבטלה', NS_MAIN, 'דמי_אבטלה' ],
-			'Hebrew namespace name' => [ 'קטגוריה:זכויות', NS_CATEGORY, 'זכויות' ],
+			'localised namespace name' => [ 'קטגוריה:זכויות', NS_CATEGORY, 'זכויות' ],
 			'canonical namespace name' => [ 'Category:Rights', NS_CATEGORY, 'Rights' ],
+			'configured project name' => [ 'כל-זכות:שאלות ותשובות', NS_PROJECT, 'שאלות_ותשובות' ],
+			'localised project alias' => [ 'כל זכות:אודות המיזם', NS_PROJECT, 'אודות_המיזם' ],
+			'canonical project name' => [ 'Project:תרומה לכל זכות', NS_PROJECT, 'תרומה_לכל_זכות' ],
+			'lower-case canonical name' => [ 'project:X', NS_PROJECT, 'X' ],
+			'local wiki project name is not the hub one' => [ 'كل الحق:X', NS_MAIN, 'كل_الحق:X' ],
 			'colon that is not a namespace' => [ 'הסכם: נוסח', NS_MAIN, 'הסכם:_נוסח' ],
 			'surrounding spaces' => [ ' דמי אבטלה ', NS_MAIN, 'דמי_אבטלה' ],
 		];
@@ -43,51 +34,16 @@ class HubLookupTest extends MediaWikiUnitTestCase {
 	 * @dataProvider provideSplitTitle
 	 */
 	public function testSplitTitle( string $text, int $ns, string $dbKey ) {
-		$this->assertSame( [ $ns, $dbKey ], HubLookup::splitTitle( $text, $this->newHebrew() ) );
+		$this->assertSame(
+			[ $ns, $dbKey ],
+			HubLookup::splitTitle( $text, self::newHebrewNamespaces(), $this->newCaselessLanguage() )
+		);
 	}
 
-	/**
-	 * A fake hub database: page rows by "ns:dbkey", redirect rows and langlinks
-	 * by page ID.
-	 */
-	private function newDb( array $pages, array $redirects, array $langlinks ): IReadableDatabase {
-		$db = $this->createMock( IReadableDatabase::class );
-		$db->method( 'newSelectQueryBuilder' )->willReturnCallback(
-			static fn () => new SelectQueryBuilder( $db )
-		);
-		$db->method( 'selectRow' )->willReturnCallback(
-			static function ( $table, $vars, $conds ) use ( $pages, $redirects ) {
-				$table = (array)$table;
-				if ( reset( $table ) === 'page' ) {
-					$row = $pages[$conds['page_namespace'] . ':' . $conds['page_title']] ?? null;
-				} else {
-					$row = $redirects[$conds['rd_from']] ?? null;
-				}
-				return $row ? (object)$row : false;
-			}
-		);
-		$db->method( 'select' )->willReturnCallback(
-			static function ( $table, $vars, $conds ) use ( $langlinks ) {
-				$rows = [];
-				foreach ( $langlinks[$conds['ll_from']] ?? [] as $lang => $title ) {
-					$rows[] = (object)[ 'll_lang' => $lang, 'll_title' => $title ];
-				}
-				return new FakeResultWrapper( $rows );
-			}
-		);
-		return $db;
-	}
-
-	private static function page( int $id, int $ns, string $title, bool $redirect = false ): array {
-		return [
-			'page_id' => $id,
-			'page_namespace' => $ns,
-			'page_title' => $title,
-			'page_is_redirect' => $redirect ? 1 : 0,
-		];
-	}
-
-	private function newLookup( ?IReadableDatabase $db = null ): HubLookup {
+	private function newLookup(
+		?IReadableDatabase $db = null,
+		array $configuredNames = [ NS_PROJECT => 'כל-זכות' ]
+	): HubLookup {
 		$provider = $this->createMock( IConnectionProvider::class );
 		if ( $db ) {
 			$provider->method( 'getReplicaDatabase' )->with( 'kz_he' )->willReturn( $db );
@@ -95,14 +51,16 @@ class HubLookupTest extends MediaWikiUnitTestCase {
 		return new HubLookup(
 			$provider,
 			new WANObjectCache( [ 'cache' => new HashBagOStuff() ] ),
-			$this->newHebrew(),
-			'kz_he'
+			$this->newCaselessLanguage(),
+			self::newHebrewNamespaces( $configuredNames ),
+			'kz_he',
+			'site'
 		);
 	}
 
 	public function testFetchReadsTheHubsLanguageLinks() {
-		$db = $this->newDb(
-			[ '0:דמי_אבטלה' => self::page( 1, NS_MAIN, 'דמי_אבטלה' ) ],
+		$db = $this->newHubDb(
+			[ '0:דמי_אבטלה' => self::pageRow( 1, NS_MAIN, 'דמי_אבטלה' ) ],
 			[],
 			[ 1 => [ 'ar' => 'مخصصات البطالة', 'en' => 'Unemployment', 'ru' => 'Пособие' ] ]
 		);
@@ -116,10 +74,10 @@ class HubLookupTest extends MediaWikiUnitTestCase {
 	}
 
 	public function testFetchFollowsOneRedirect() {
-		$db = $this->newDb(
+		$db = $this->newHubDb(
 			[
-				'0:הריון' => self::page( 1, NS_MAIN, 'הריון', true ),
-				'0:היריון' => self::page( 2, NS_MAIN, 'היריון' ),
+				'0:הריון' => self::pageRow( 1, NS_MAIN, 'הריון', true ),
+				'0:היריון' => self::pageRow( 2, NS_MAIN, 'היריון' ),
 			],
 			[ 1 => [ 'rd_namespace' => NS_MAIN, 'rd_title' => 'היריון', 'rd_interwiki' => '' ] ],
 			[ 2 => [ 'ru' => 'Беременность' ] ]
@@ -131,11 +89,11 @@ class HubLookupTest extends MediaWikiUnitTestCase {
 	}
 
 	public function testFetchRefusesDoubleAndInterwikiRedirects() {
-		$db = $this->newDb(
+		$db = $this->newHubDb(
 			[
-				'0:A' => self::page( 1, NS_MAIN, 'A', true ),
-				'0:B' => self::page( 2, NS_MAIN, 'B', true ),
-				'0:C' => self::page( 3, NS_MAIN, 'C', true ),
+				'0:A' => self::pageRow( 1, NS_MAIN, 'A', true ),
+				'0:B' => self::pageRow( 2, NS_MAIN, 'B', true ),
+				'0:C' => self::pageRow( 3, NS_MAIN, 'C', true ),
 			],
 			[
 				1 => [ 'rd_namespace' => NS_MAIN, 'rd_title' => 'B', 'rd_interwiki' => '' ],
@@ -149,16 +107,16 @@ class HubLookupTest extends MediaWikiUnitTestCase {
 	}
 
 	public function testFetchMissingPage() {
-		$this->assertNull( $this->newLookup()->fetch( $this->newDb( [], [], [] ), NS_MAIN, 'Nope' ) );
+		$this->assertNull( $this->newLookup()->fetch( $this->newHubDb( [], [], [] ), NS_MAIN, 'Nope' ) );
 	}
 
 	public function testLookupReportsMissingAsEmptyArray() {
-		$this->assertSame( [], $this->newLookup( $this->newDb( [], [], [] ) )->lookup( 'Nope' ) );
+		$this->assertSame( [], $this->newLookup( $this->newHubDb( [], [], [] ) )->lookup( 'Nope' ) );
 	}
 
 	public function testLookupReadsTheHubWikiInItsNamespace() {
-		$db = $this->newDb(
-			[ '14:זכויות' => self::page( 7, NS_CATEGORY, 'זכויות' ) ],
+		$db = $this->newHubDb(
+			[ '14:זכויות' => self::pageRow( 7, NS_CATEGORY, 'זכויות' ) ],
 			[],
 			[ 7 => [ 'ar' => 'تصنيف:حقوق' ] ]
 		);
@@ -166,5 +124,58 @@ class HubLookupTest extends MediaWikiUnitTestCase {
 			[ 'title' => 'קטגוריה:זכויות', 'links' => [ 'ar' => 'تصنيف:حقوق' ] ],
 			$this->newLookup( $db )->lookup( 'קטגוריה:זכויות' )
 		);
+	}
+
+	public static function provideProjectSpellings() {
+		return [
+			'hyphen, as $wgMetaNamespace' => [ 'כל-זכות:שאלות ותשובות', 'כל-זכות:שאלות ותשובות' ],
+			'space, a WRMessages alias' => [ 'כל זכות:אודות המיזם', 'כל-זכות:אודות המיזם' ],
+			'canonical' => [ 'Project:תרומה לכל זכות', 'כל-זכות:תרומה לכל זכות' ],
+		];
+	}
+
+	/**
+	 * Every spelling of the hub's project namespace finds the page, and the hub
+	 * title always carries the hub's own name for it.
+	 *
+	 * @dataProvider provideProjectSpellings
+	 */
+	public function testProjectHubIsNamedTheHubsWay( string $link, string $expectedTitle ) {
+		$result = $this->newLookup( $this->newProjectHubDb() )->lookup( $link );
+		$this->assertSame( $expectedTitle, $result['title'] ?? null );
+	}
+
+	public function testUnconfiguredProjectNameFallsBackToCanonical() {
+		$result = $this->newLookup( $this->newProjectHubDb(), [] )->lookup( 'Project:תרומה לכל זכות' );
+		$this->assertSame( 'Project:תרומה לכל זכות', $result['title'] ?? null );
+	}
+
+	public function testHubInAnUnnamedNamespaceIsNotUsed() {
+		$db = $this->newHubDb(
+			[ '0:X' => self::pageRow( 1, NS_MAIN, 'X', true ), '126:Y' => self::pageRow( 2, 126, 'Y' ) ],
+			[ 1 => [ 'rd_namespace' => 126, 'rd_title' => 'Y', 'rd_interwiki' => '' ] ],
+			[ 2 => [ 'ar' => 'A' ] ]
+		);
+		$this->assertSame( [], $this->newLookup( $db )->lookup( 'X' ) );
+	}
+
+	public function testCacheKeysAreSeparatedBySite() {
+		$wan = new WANObjectCache( [ 'cache' => new HashBagOStuff() ] );
+		$calls = 0;
+		$db = $this->newHubDb( [ '0:X' => self::pageRow( 1, NS_MAIN, 'X' ) ], [], [ 1 => [ 'ar' => 'A' ] ] );
+		$provider = $this->createMock( IConnectionProvider::class );
+		$provider->method( 'getReplicaDatabase' )->willReturnCallback(
+			static function () use ( $db, &$calls ) {
+				$calls++;
+				return $db;
+			}
+		);
+		$make = fn ( string $site ) => new HubLookup(
+			$provider, $wan, $this->newCaselessLanguage(), self::newHebrewNamespaces(), 'kz_he', $site
+		);
+		$make( 'main' )->lookup( 'X' );
+		$make( 'main' )->lookup( 'X' );
+		$make( 'teen' )->lookup( 'X' );
+		$this->assertSame( 2, $calls );
 	}
 }
